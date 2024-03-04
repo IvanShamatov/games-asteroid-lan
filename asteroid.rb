@@ -11,12 +11,27 @@ class Asteroid
     x += SCREEN_WIDTH if x.positive?
     y += SCREEN_HEIGHT if y.positive?
     position = Vector2.create(x, y)
-
     velocity = Vector2Subtract(SCREEN_CENTER, position)
     velocity = Vector2Scale(Vector2Normalize(velocity), rand(1..3));
     velocity = Vector2Rotate(velocity, rand(-20..20) * DEG2RAD);
 
     new(velocity: velocity, position: position, size: Asteroid::SIZES.sample)
+  end
+
+  def self.split(a)
+    position = a.position
+    case a.size
+    when LARGE
+      [create(a, MEDIUM), create(a, MEDIUM)]
+    when MEDIUM
+      [create(a, SMALL), create(a, SMALL)]
+    end
+  end
+
+  def self.create(a, size)
+    velocity = Vector2Rotate(a.velocity, rand(-50..50) * DEG2RAD);
+
+    new(velocity: Vector2Normalize(velocity), position: a.position, size: size)
   end
 
   attr_accessor :velocity, :position, :size, :rotation, :rotation_speed, :active
@@ -44,6 +59,8 @@ class Asteroid
   end
 
   def draw
+    return unless active
+
     color_by_size = {
       SMALL => GREEN,
       MEDIUM => GOLD,

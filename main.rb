@@ -23,12 +23,16 @@ end
 class Game
   include Raylib
 
+  attr_accessor :player
+
   def initialize
     @score = 0
     @asteroids = []
     @last_created_at = nil
     @projectiles = []
     @player = Player.new
+    @asteroids_to_add = []
+    @asteroids_to_remove = []
   end
 
   def run
@@ -44,9 +48,13 @@ class Game
   end
 
   def handle_input
-    if IsMouseButtonPressed(MOUSE_BUTTON_LEFT)
-      @projectiles << Projectile.create(origin: GetMousePosition(), position: SCREEN_CENTER)
+    if IsKeyPressed(KEY_SPACE)
+      @projectiles << Projectile.create(
+        origin: Vector2Add(player.facing_direction, player.position),
+        position: player.position
+      )
     end
+    @player.handle_input
   end
 
   def update
@@ -57,23 +65,30 @@ class Game
       @last_created_at = GetTime()
     end
 
-    @asteroids.reject! { !_1.active }
-    @asteroids.each(&:update)
+    @asteroids += @asteroids_to_add.flatten
+    @asteroids_to_add = []
+
+    @asteroids -= @asteroids_to_remove
+    @asteroids_to_remove = []
+
+    @asteroids.compact.each(&:update)
 
     @projectiles.reject! { !_1.active }
     @projectiles.each(&:update)
 
     @projectiles.each do |p|
-      @asteroids.each do |a|
+      @asteroids.compact.each do |a|
         if CheckCollisionCircles(p.position, 5, a.position, a.size)
           p.active = false
           a.active = false
+          @asteroids_to_add << Asteroid.split(a)
+          @asteroids_to_remove << a
           @score += 1
         end
       end
     end
 
-    @asteroids.each do |a|
+    @asteroids.compact.each do |a|
       if CheckCollisionCircles(a.position, a.size, SCREEN_CENTER, 10)
         @player.health -= 10
       end
@@ -86,8 +101,9 @@ class Game
       DrawText("SCORE: #{@score}", 50, 50, 20, WHITE)
       # DrawText("Asteroids: #{@asteroids.count}", 50, 50, 20, WHITE)
       DrawText("HEALTH: #{@player.health}", SCREEN_WIDTH - 170, 50, 20, WHITE)
+
       @player.draw
-      @asteroids.each(&:draw)
+      @asteroids.compact.each(&:draw)
       @projectiles.each(&:draw)
     EndDrawing()
   end

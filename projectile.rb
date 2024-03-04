@@ -4,7 +4,7 @@ class Projectile
 
   def self.create(origin:, position:)
     velocity = Vector2Subtract(origin, position)
-    velocity = Vector2Scale(Vector2Normalize(velocity), 5)
+    velocity = Vector2Scale(Vector2Normalize(velocity), 10)
 
     new(velocity: velocity, position: position)
   end
