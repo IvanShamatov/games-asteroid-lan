@@ -19,13 +19,13 @@ class Game
     @client_id = Nanoid.generate(size: 5)
     @message_queue = Queue.new
     run_redis_subscription()
-    puts 'Connected #{@client_id}'
+    puts "Connected #{@client_id}"
     publish_message({type: "new_client", id: @client_id})
     @players = []
   end
 
 
-# Function to initialize and run the Redis subscription
+  # Function to initialize and run the Redis subscription
   def run_redis_subscription
     Thread.new do
       @connection.subscribe("game_#{@client_id}_channel") do |on|
@@ -107,13 +107,6 @@ class Game
     EndDrawing()
   end
 end
-
-class State
-  def draw
-
-  end
-end
-
 
 class Bullet
 
