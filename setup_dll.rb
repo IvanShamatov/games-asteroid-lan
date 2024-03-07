@@ -44,3 +44,11 @@ else
 end
 
 include Raylib
+
+module Raylib
+  class Vector2
+    def inspect
+      "#<Raylib::Vector2 (#{self.x}, #{self.y})"
+    end
+  end
+end
