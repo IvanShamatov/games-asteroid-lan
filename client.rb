@@ -14,7 +14,7 @@ class Game
   attr_accessor :player
 
   def initialize
-    @connection = Redis.new(host: 'localhost', port: 6379)
+    @connection = Redis.new(host: 'redis', port: 6379)
     @client_id = Nanoid.generate(size: 5)
     @message_queue = Queue.new
     run_redis_subscription()

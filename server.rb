@@ -1,6 +1,7 @@
 require 'bundler'
 Bundler.require
-require_relative 'setup_dll'
+# require_relative 'setup_dll'
+Raylib.load_lib("libraylib.x86_64.so")
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 800
@@ -80,7 +81,7 @@ end
 
 class Server
   def initialize
-    @connection = Redis.new(host: 'localhost', port: 6379)
+    @connection = Redis.new(host: 'redis', port: 6379)
     puts 'Connected'
     @players = []
     @bullets = []

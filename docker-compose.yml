@@ -1,0 +1,12 @@
+version: '3'
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - redis
+  redis:
+    image: redis
+    ports:
+      - '0.0.0.0:6333:6379'

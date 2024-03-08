@@ -9,4 +9,4 @@ RUN bundle install
 
 COPY . /app
 
-CMD ["ruby server.rb"]
+CMD ["bundle", "exec", "ruby", "server.rb"]
