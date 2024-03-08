@@ -12,7 +12,7 @@ if raylib_bindings_gem_available?
 
   s = Gem::Specification.find_by_name('raylib-bindings')
   shared_lib_path = s.full_gem_path + '/lib/'
-  shared_lib_path = ""
+  shared_lib_path = "./"
 
   case RUBY_PLATFORM
   when /mswin|msys|mingw|cygwin/
