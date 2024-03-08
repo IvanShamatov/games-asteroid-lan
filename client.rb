@@ -3,8 +3,8 @@ Bundler.require
 require 'thread'
 require_relative 'setup_dll'
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 800
 DEG2RAD = Math::PI/180.0
 SCREEN_CENTER = Vector2.create(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
 
@@ -14,7 +14,6 @@ class Game
   attr_accessor :player
 
   def initialize
-    @state = State.new
     @connection = Redis.new(host: 'localhost', port: 6379)
     @client_id = Nanoid.generate(size: 5)
     @message_queue = Queue.new
@@ -22,6 +21,7 @@ class Game
     puts "Connected #{@client_id}"
     publish_message({type: "new_client", id: @client_id})
     @players = []
+    @bullets = []
   end
 
 
@@ -50,14 +50,20 @@ class Game
         update
         draw
       end
+
+      send_disonnect
     CloseWindow()
+  end
+
+  def send_disonnect
+    publish_message({type: 'disconnect', id: @client_id})
   end
 
   def handle_input
     inputs_to_send = {
       x: int_key_down(KEY_A) - int_key_down(KEY_D),
       y: int_key_down(KEY_W) - int_key_down(KEY_S),
-      shoot: IsKeyPressed(KEY_SPACE),
+      shoot: IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
       ft: GetFrameTime()
     }
     publish_message({type: 'tick', id: @client_id, inputs: inputs_to_send})
@@ -78,22 +84,20 @@ class Game
             health: p['health'],
             position: Vector2.create(p['position'][0], p['position'][1]),
             rotation: p['rotation'],
-            color: GetColor(array_to_hex(p['color']))
+            color: GetColor(array_to_hex(p['color'])),
+            score: p['score']
+          )
+        end
+
+        @bullets = message['bullets'].map do |b|
+          Bullet.new(
+            position: Vector2.create(b['position'][0], b['position'][1]),
+            color: GetColor(array_to_hex(b['color']))
           )
         end
       end
     end
     # @players.each(&:update)
-
-
-    # @bullets.each do |p|
-    #   @players.each do |player|
-    #     if CheckCollisionCircles(p.position, 5, player.position, 30)
-    #       p.active = false
-    #       a.active = false
-    #     end
-    #   end
-    # end
   end
 
   def array_to_hex(color_array)
@@ -103,69 +107,49 @@ class Game
   def draw
     BeginDrawing()
       ClearBackground(BLACK)
+      draw_score
       @players.each(&:draw)
+      @bullets.each(&:draw)
     EndDrawing()
+  end
+
+  def draw_score
+    DrawText("SCORE:", 50, 50, 20, WHITE)
+    @players.each_with_index do |p, i|
+      DrawText("#{p.id}: #{p.score}", 50, 80 + 30*i, 20, p.color)
+    end
   end
 end
 
 class Bullet
+  attr_accessor :position, :color
 
-  attr_accessor :velocity, :position, :active
-
-  def self.create(origin:, position:, player:)
-    velocity = Vector2Subtract(origin, position)
-    velocity = Vector2Scale(Vector2Normalize(velocity), 10)
-
-    new(velocity: velocity, position: position, player: player)
-  end
-
-  def initialize(velocity:, position:,player:)
-    @active = true
-    @velocity = velocity
+  def initialize(position:, color:)
     @position = position
-    @player = player
-  end
-
-  def update
-    if position.x < 0 || position.x > SCREEN_WIDTH  || position.y < 0 || position.y > SCREEN_HEIGHT
-      self.active = false
-      return
-    end
-
-    self.position = Vector2Add(position, velocity)
+    @color = color
   end
 
   def draw
-    DrawCircleV(position, 5, player.color)
+    DrawCircleV(position, 5, color)
   end
 end
 
 
 class Player
-  attr_accessor :health, :color, :rotation, :health, :id, :position
+  attr_accessor :health, :color, :rotation, :id, :position, :score
 
-  def handle_input
-    frametime = GetFrameTime()
-
-    x = int_key_down(KEY_A) - int_key_down(KEY_D)
-    y = int_key_down(KEY_W) - int_key_down(KEY_S)
-  end
-
-  def int_key_down(key)
-    IsKeyDown(key) ? 1 : 0
-  end
-
-  def initialize(position:, rotation:, health:, color:, id: )
+  def initialize(score:, position:, rotation:, health:, color:, id:)
     @id = id
     @position = position
     @rotation = rotation
     @health = health
     @color = color
+    @score = score
   end
 
   def draw
     DrawPolyLinesEx(position, 3, 30, rotation, 5, color)
-    DrawText("#{health}", position.x - 25, position.y - 35, 10, WHITE)
+    DrawText("#{health}", position.x - 25, position.y - 35, 20, WHITE)
   end
 end
 

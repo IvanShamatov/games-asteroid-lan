@@ -2,8 +2,8 @@ require 'bundler'
 Bundler.require
 require_relative 'setup_dll'
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 800
 DEG2RAD = Math::PI/180.0
 SCREEN_CENTER = Vector2.create(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
 
@@ -14,7 +14,7 @@ class Player
   PLAYER_DECELERATION = 0.2
   MAX_SPEED = 5
 
-  attr_accessor :health, :position, :rotation, :velocity, :id, :color
+  attr_accessor :health, :position, :rotation, :velocity, :id, :color, :score
 
   def initialize(id)
     @id = id
@@ -23,6 +23,7 @@ class Player
     @rotation = 0
     @velocity = Vector2Zero()
     @color = [WHITE, GREEN, GOLD, SKYBLUE, RED].sample
+    @score = 0
   end
 
   def update(x = 0, y = 0, frametime = nil)
@@ -32,8 +33,10 @@ class Player
       self.velocity = Vector2Lerp(velocity, Vector2Zero(), PLAYER_ACCELERATION * frametime)
     else
       mag = Vector2Length(velocity)
-      if mag <= MAX_SPEED
-        self.velocity = Vector2Add(velocity, Vector2Scale(facing_direction, PLAYER_ACCELERATION * frametime))
+
+      self.velocity = Vector2Add(velocity, Vector2Scale(facing_direction, PLAYER_ACCELERATION * frametime))
+      if mag > MAX_SPEED
+        self.velocity = Vector2Scale(velocity, MAX_SPEED / mag)
       end
     end
 
@@ -44,6 +47,10 @@ class Player
     position.y = SCREEN_HEIGHT if position.y < 0
   end
 
+  def damage(i)
+    @health -= i
+  end
+
   def facing_direction
     Vector2Rotate(Vector2.create(-1, 0), (rotation - 180) * DEG2RAD)
   end
@@ -51,11 +58,23 @@ end
 
 
 class Bullet
-  def handle_input
-      @bullets << Bullet.create(
-        origin: Vector2Add(player.facing_direction, player.position),
-        position: player.position
-      )
+  BULLET_SPEED = 10
+
+  attr_accessor :active, :position, :color, :id
+
+  def initialize(id:, direction:, position:, color:)
+    @id = id
+    @active = true
+    @velocity = Vector2Scale(Vector2Normalize(direction), BULLET_SPEED)
+    @position = position
+    @color = color
+  end
+
+  def update
+    @position = Vector2Add(@position, @velocity)
+    if @position.x < 0 || @position.x > SCREEN_WIDTH || @position.y < 0 || @position.y > SCREEN_HEIGHT
+      @active = false
+    end
   end
 end
 
@@ -84,22 +103,44 @@ class Server
         when "new_client"
           @players << Player.new(parsed_message["id"])
           @chans << "game_#{parsed_message["id"]}_channel"
-
         when "tick"
           # puts parsed_message
           update_state(parsed_message)
           publish_state
+
+        when "disconnect"
+          @players.reject! {_1.id == parsed_message['id']}
         end
       end
     end
   end
 
   def update_state(m)
-    p = @players.find { _1.id == m['id'] }
-    # binding.pry
-    p.update(m.dig("inputs", "x"), m.dig("inputs", "y"), m.dig("inputs", "ft"))
+    player = @players.find { _1.id == m['id'] }
+    player.update(m.dig("inputs", "x"), m.dig("inputs", "y"), m.dig("inputs", "ft"))
 
-    # "id"=>"mrRnp", "inputs"=>{"x"=>0, "y"=>0, "shoot"=>false, "ft"=>0.01666695810854435}
+    if m.dig("inputs", "shoot")
+      @bullets << Bullet.new(
+        id: player.id,
+        direction: player.facing_direction,
+        position: player.position,
+        color: player.color
+      )
+    end
+
+    @bullets.reject!{ !_1.active }
+    @bullets.each(&:update)
+
+    @bullets.each do |bullet|
+      @players.each do |player|
+        next if bullet.id == player.id
+        if CheckCollisionCircles(bullet.position, 5, player.position, 30)
+          bullet.active = false
+          player.damage(1)
+          @players.find { _1.id == bullet.id }.score += 1
+        end
+      end
+    end
   end
 
   def publish_state
@@ -110,11 +151,17 @@ class Server
           health: p.health,
           position: [p.position.x, p.position.y],
           rotation: p.rotation,
-          color: p.color.values
+          color: p.color.values,
+          score: p.score
+        }
+      end,
+      bullets: @bullets.map do |b|
+        {
+          color: b.color.values,
+          position: [b.position.x, b.position.y]
         }
       end
     }
-    # puts message
     publish_message(message)
   end
 end
