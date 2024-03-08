@@ -1,7 +1,7 @@
 require 'bundler'
 Bundler.require
-# require_relative 'setup_dll'
-Raylib.load_lib("libraylib.x86_64.so")
+require_relative 'setup_dll'
+
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 800
