@@ -2,6 +2,9 @@ require 'bundler'
 Bundler.require
 require 'thread'
 require_relative 'setup_dll'
+require_relative 'player'
+require_relative 'bullet'
+require_relative 'connection'
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 800
@@ -11,19 +14,21 @@ SCREEN_CENTER = Vector2.create(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
 class Game
   include Raylib
 
-  attr_accessor :player
+  attr_accessor :player, :conn
 
   def initialize
-    @connection = Redis.new(host: 'redis', port: 6379)
-    @client_id = Nanoid.generate(size: 5)
+    @state = :not_connected #:game
+    @conn = Connection.new
     @message_queue = Queue.new
-    run_redis_subscription()
-    puts "Connected #{@client_id}"
-    publish_message({type: "new_client", id: @client_id})
-    @players = []
-    @bullets = []
-  end
+    @player = Player.create(id: Nanoid.generate(size: 5))
+    # run_redis_subscription()
+    # publish_message({type: "new_client", id: @client_id})
+    @enemies = {}
+    @bullets = {}
 
+    @server_input = FFI::MemoryPointer.new(:char, 64)
+    @server_input.write_string("Server IP:PORT")
+  end
 
   # Function to initialize and run the Redis subscription
   def run_redis_subscription
@@ -37,26 +42,24 @@ class Game
     end
   end
 
-  def publish_message(message)
-    json_message = message.to_json
-    @connection.publish('input_handle_channel', json_message)
-  end
-
   def run
+
+    @exit_window = false
+    @show_are_you_sure = false
     SetTargetFPS(60)
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Asteroids Lan")
-      until WindowShouldClose()
-        handle_input
-        update
-        draw
-      end
+    GuiLoadStyle('style_dark.rgs')
 
-      send_disonnect
+    until @exit_window
+      @exit_window = WindowShouldClose()
+      @show_are_you_sure = !@show_are_you_sure if IsKeyPressed(KEY_ESCAPE)
+
+      handle_input
+      update
+      draw
+    end
+
     CloseWindow()
-  end
-
-  def send_disonnect
-    publish_message({type: 'disconnect', id: @client_id})
   end
 
   def handle_input
@@ -66,7 +69,7 @@ class Game
       shoot: IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
       ft: GetFrameTime()
     }
-    publish_message({type: 'tick', id: @client_id, inputs: inputs_to_send})
+    # publish({drawype: 'tick', id: @client_id, inputs: inputs_to_send})
   end
 
   def int_key_down(key)
@@ -107,10 +110,21 @@ class Game
   def draw
     BeginDrawing()
       ClearBackground(BLACK)
-      draw_score
-      @players.each(&:draw)
-      @bullets.each(&:draw)
+      if @state == :connecting
+        draw_input
+      elsif @state == :connected
+        draw_score
+        @enemies.each(&:draw)
+        @bullets.each(&:draw)
+      end
+      @player.draw
     EndDrawing()
+  end
+
+  def draw_input
+    # textBoxEditMode = false
+    result = GuiTextBox(Rectangle.create(50, 200, 100,55), @server_input, @server_input.size, true)
+    # textBoxEditMode = !textBoxEditMode if result != 0
   end
 
   def draw_score
@@ -118,38 +132,6 @@ class Game
     @players.each_with_index do |p, i|
       DrawText("#{p.id}: #{p.score}", 50, 80 + 30*i, 20, p.color)
     end
-  end
-end
-
-class Bullet
-  attr_accessor :position, :color
-
-  def initialize(position:, color:)
-    @position = position
-    @color = color
-  end
-
-  def draw
-    DrawCircleV(position, 5, color)
-  end
-end
-
-
-class Player
-  attr_accessor :health, :color, :rotation, :id, :position, :score
-
-  def initialize(score:, position:, rotation:, health:, color:, id:)
-    @id = id
-    @position = position
-    @rotation = rotation
-    @health = health
-    @color = color
-    @score = score
-  end
-
-  def draw
-    DrawPolyLinesEx(position, 3, 30, rotation, 5, color)
-    DrawText("#{health}", position.x - 25, position.y - 35, 20, WHITE)
   end
 end
 

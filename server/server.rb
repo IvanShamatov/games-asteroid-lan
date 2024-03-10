@@ -81,7 +81,7 @@ end
 
 class Server
   def initialize
-    @connection = Redis.new(host: 'redis', port: 6379)
+    @connection = Redis.new(host: 'localhost', port: 6379)
     puts 'Connected'
     @players = []
     @bullets = []
