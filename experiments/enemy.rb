@@ -3,15 +3,16 @@ class Enemy
   PLAYER_ACCELERATION = 30
   PLAYER_DECELERATION = 0.2
   MAX_SPEED = 5
+  SIZE = 30
 
   attr_reader :id
 
-  attr_accessor :health, :position, :rotation, :velocity, :color, :score
+  attr_accessor :health, :pos, :rotation, :velocity, :color, :score
 
   def initialize(id:, pos:)
     @id = id
     @health = 100
-    @position = pos
+    @pos = pos
     @rotation = 0
     @velocity = Vector2Zero()
     @color = [WHITE, GREEN, GOLD, SKYBLUE, RED].sample
@@ -32,15 +33,15 @@ class Enemy
       end
     end
 
-    self.position = Vector2Add(position, velocity)
+    self.pos = Vector2Add(pos, velocity)
     bounce_borders
   end
 
   def bounce_borders
-    position.x = FIELD_WIDTH if position.x > FIELD_WIDTH
-    position.x = 0 if position.x < 0
-    position.y = 0 if position.y < 0
-    position.y = FIELD_HEIGHT if position.y > FIELD_HEIGHT
+    pos.x = FIELD_WIDTH if pos.x > FIELD_WIDTH
+    pos.x = 0 if pos.x < 0
+    pos.y = 0 if pos.y < 0
+    pos.y = FIELD_HEIGHT if pos.y > FIELD_HEIGHT
   end
 
   def damage(i)
@@ -52,7 +53,7 @@ class Enemy
   end
 
   def draw
-    DrawPolyLinesEx(position, 3, 30, rotation, 5, color)
-    DrawText("#{health}", position.x - 25, position.y - 35, 20, WHITE)
+    DrawPolyLinesEx(pos, 3, SIZE, rotation, 5, color)
+    DrawText("#{health}", pos.x - 25, pos.y - 35, 20, WHITE)
   end
 end
