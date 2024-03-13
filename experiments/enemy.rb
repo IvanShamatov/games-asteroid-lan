@@ -7,34 +7,23 @@ class Enemy
 
   attr_reader :id
 
-  attr_accessor :health, :pos, :rotation, :velocity, :color, :score
+  attr_accessor :health, :pos, :rotation, :velocity, :color, :score, :rect
 
   def initialize(id:, pos:)
     @id = id
     @health = 100
     @pos = pos
     @rotation = 0
-    @velocity = Vector2Zero()
+    @velocity = Vector2Scale(Vector2.create(2 * rand() - 1, 2 * rand() - 1), MAX_SPEED)
     @color = [WHITE, GREEN, GOLD, SKYBLUE, RED].sample
     @score = 0
+    @rect = Rectangle.create(@pos.x - SIZE / 2.0 , @pos.y - SIZE / 2.0, SIZE, SIZE)
   end
 
-  def update(x: 0, y: 0, ft: nil)
-    self.rotation -= (x * PLAYER_ROT_SPEED)
-
-    if y == 0
-      self.velocity = Vector2Lerp(velocity, Vector2Zero(), PLAYER_ACCELERATION * ft)
-    else
-      mag = Vector2Length(velocity)
-
-      self.velocity = Vector2Add(velocity, Vector2Scale(facing_direction, PLAYER_ACCELERATION * ft))
-      if mag > MAX_SPEED
-        self.velocity = Vector2Scale(velocity, MAX_SPEED / mag)
-      end
-    end
-
+  def update(collision = false)
     self.pos = Vector2Add(pos, velocity)
     bounce_borders
+    # bounce_asteroids if collision
   end
 
   def bounce_borders
@@ -42,6 +31,12 @@ class Enemy
     pos.x = 0 if pos.x < 0
     pos.y = 0 if pos.y < 0
     pos.y = FIELD_HEIGHT if pos.y > FIELD_HEIGHT
+    # Vector2Rotate(velocity, 90 * DEG2RAD)
+  end
+
+  def bounce_asteroids
+    self.pos = Vector2Subtract(pos, velocity)
+    # Vector2Normalize(Vector2Rotate(velocity, rand(30) * DEG2RAD))
   end
 
   def damage(i)
